@@ -167,12 +167,12 @@ game.gameLoop = function loop() {
 	requestAnimationFrame(loop); // recurse
 
 	game.cameraMove();
-	draw(game.camera, game.cubes, game.players);
+	//draw(game.camera, game.cubes, game.players);
 };
 
 (function() {
 
-	webGLStart();
+	renderer.init();
 	game.addEventListeners();
 	game.initWorld();
 	game.gameLoop();
