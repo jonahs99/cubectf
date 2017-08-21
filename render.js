@@ -1,7 +1,11 @@
+
+
 var renderer = {
 
 	canvas: null,
 	gl: null,
+
+	vaos: {cube: null},
 
 };
 
@@ -20,6 +24,8 @@ renderer.init = function() {
         return false;
     }
 
+    renderer.initVAOs();
+
     renderer.gl.clearColor(0.15, 0.15, 0.15, 1.0);
     renderer.gl.enable(renderer.gl.DEPTH_TEST);
 
@@ -28,38 +34,42 @@ renderer.init = function() {
 
 renderer.initShader = function() {
 	renderer.flatShader = new shader(renderer.gl,
-	`#version 300 es
-	attribute vec3 aVertexPosition;
-	attribute vec3 aVertexNormal;
-	attribute vec3 aVertexColor;
+		`#version 300 es
+		in vec3 a_position;
+		in vec3 a_normal;
 
-	uniform mat4 uMMatrix;
-	uniform mat4 uVMatrix;
-	uniform mat4 uPMatrix;
-	uniform mat4 uNormalMatrix;
+		uniform mat4 u_model;
+		uniform mat4 u_view;
+		uniform mat4 u_projection;
+		uniform mat4 u_normal;
+		uniform lowp vec4 u_color;
+		uniform vec3 u_light;
 
-	varying lowp vec4 vColor;
+		out lowp vec4 vColor;
 
-	void main(void) {
-	    vec3 light = normalize(vec3(-2.0, 4.0, -1.0));
-	    vec4 transformedNormal = uNormalMatrix * vec4(aVertexNormal, 1.0);
-	    float ambient = 0.8;
-	    float directional = max(0.5 + dot(transformedNormal.xyz, light), 0.0) / 1.5 * (1.0 - ambient);
-	    float brightness = directional + ambient;
+		void main(void) {
+		    vec4 transformedNormal = u_normal * vec4(u_view, 1.0);
+		    float ambient = 0.8;
+		    float directional = max(0.5 + dot(transformedNormal.xyz, u_light), 0.0) / 1.5 * (1.0 - ambient);
+		    float brightness = directional + ambient;
 
-	    gl_Position = uPMatrix * uVMatrix * uMMatrix * vec4(aVertexPosition, 1.0);
-	    vColor = vec4(brightness * aVertexColor, 1.0);
-	}
-	`,
-	`#version 300 es
-	varying lowp vec4 vColor;
-	uniform lowp vec4 uTint;
-	void main(void) {
-	    gl_FragColor = vColor * uTint;
-	}
-	`
-	);
+		    gl_Position = u_projection * u_view * u_model * vec4(a_position, 1.0);
+		    vColor = brightness * u_color;
+		}
+		`,
+		`#version 300 es
+		in lowp vec4 vColor;
+		
+		void main(void) {
+		    gl_FragColor = vColor;
+		}
+		`
+		);
 }
+
+renderer.initVAOs = function() {
+	renderer.vaos.cube = renderer.createVAOfromOBJ(cubeOBJ);
+};
 
 renderer.resize = function() {
 	renderer.canvas.width = window.innerWidth;
@@ -71,4 +81,82 @@ renderer.resize = function() {
 
 renderer.calculatePerspectiveMatrix = function() {
 	mat4.perspective(45, renderer.gl.viewportWidth / renderer.gl.viewportHeight, 0.1, 100.0, renderer.perspectiveMatrix);
+};
+
+//							  \\
+///							 \\\
+//// 		Shader 			\\\\
+///							 \\\
+//							  \\
+
+renderer.createVAOfromOBJ = function(objText) {
+	var positions = [];
+	var normals = [];
+	var indices = [];
+
+	var lines = objText.split('\n');
+	lines.forEach(function(line) {
+		var words = line.split(' ');
+		if (words.length == 4) {
+			if (words[0] == 'v') {
+				positions.push(parseFloat(words[1]));
+				positions.push(parseFloat(words[2]));
+				positions.push(parseFloat(words[3]));
+			}
+			else if (words[0] == 'vn') {
+				normals.push(parseFloat(words[1]));
+				normals.push(parseFloat(words[2]));
+				normals.push(parseFloat(words[3]));
+			}
+			else if (words[0] == 'f') {
+				indices.push(parseFloat(words[1]));
+				indices.push(parseFloat(words[2]));
+				indices.push(parseFloat(words[3]));
+			}
+		}
+	});
+
+	var arrays = {
+	   position: {numComponents: 3, data: positions},
+	   normal: {numComponents: 3, data: normals},
+	   indices: {numComponents: 3, data: indices},
+	};
+	
+	var bufferInfo = twgl.createBufferInfoFromTypedArray(gl, arrays);
+	var vao = twgl.createVAOFromBufferInfo(gl, setters, bufferInfo);
+	return vao;
+}
+
+//
+// Shader
+//
+
+function shader(gl, vsText, fsText) {
+    this.vsText = vsText;
+    this.fsText = fsText;
+
+    this.vs = null;
+    this.fs = null;
+
+    this.program = this.compileShaders(gl);
+
+    this.uniformSetters = twgl.createUniformSetters(gl, this.program);
+    this.attributeSetters = twgl.createAttributeSetters(gl, this.program);
+}
+
+shader.prototype.compileShaders = function(gl) {
+    this.vs = compileShader('vs', this.vsText);
+    this.fs = compileShader('fs', this.fsText);
+
+    function compileShader(type, str) {
+        var shader = gl.createShader( {'vs': gl.VERTEX_SHADER, 'fs': gl.FRAGMENT_SHADER}[type] );
+        gl.shaderSource(shader, str);
+        gl.compileShader(shader);
+        if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+            console.log("Shader compile fail.");
+            console.log(gl.getShaderInfoLog(shader));
+            return null;
+        }
+        return shader;
+    }
 };
