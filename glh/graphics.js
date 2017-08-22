@@ -33,7 +33,8 @@ var graphics = (function() {
         var eye = m4.multiply(projection, view);
 
         gl.useProgram(shader.program);
-        gl.bindVertexArray(models.cube);
+        //gl.bindVertexArray(models.cube);
+        gl.bindVertexArray(models.octahedron);
 
         gl.uniformMatrix4fv(shader.uniforms.u_model, false, m4.identity());
         gl.uniformMatrix4fv(shader.uniforms.u_eye, false, eye);
@@ -41,13 +42,15 @@ var graphics = (function() {
         gl.uniform4fv(shader.uniforms.u_color, new Float32Array([1.0, 0.0, 0.5, 1.0]));
         gl.uniform3fv(shader.uniforms.u_light, new Float32Array([1.0, -1.0, 1.0]));
 
-        gl.drawElements(gl.TRIANGLES, 36, gl.UNSIGNED_SHORT, 0);
+        //gl.drawElements(gl.TRIANGLES, 36, gl.UNSIGNED_SHORT, 0);
+        gl.drawElements(gl.TRIANGLES, 24, gl.UNSIGNED_SHORT, 0);
 
         gl.bindVertexArray(null);
     }
 
     function loadModels() {
         models.cube = loadModel(gl, res.objs.cube);
+        models.octahedron = loadModel(gl, res.objs.octahedron);
     }
 
     function loadModel(gl, objText) {
