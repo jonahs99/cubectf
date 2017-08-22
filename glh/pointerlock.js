@@ -15,6 +15,6 @@ var pointerLock = {
 	    document.exitPointerLock();
     },
     isActive: function(canvas) {
-        return document.pointerLockElement === renderer.canvas;
+        return document.pointerLockElement === canvas;
     }
 };
