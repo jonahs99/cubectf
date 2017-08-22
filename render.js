@@ -1,95 +1,58 @@
+"use strict";
+
+var renderer = (function() {
 
 
-var renderer = {
 
-	canvas: null,
-	gl: null,
+})();
 
-	vaos: {cube: null},
+twgl.setDefaults({attribPrefix: "a_"});
+var m4 = twgl.m4;
+var v3 = twgl.v3;
 
+var gl = twgl.getContext(document.getElementById("canvas"));
+var programInfo = createProgram(gl, shader.vs, shader.fs);
+
+// Shared values
+var lightDirection = [1, -1, 1];
+
+var view_matrix = m4.identity();
+
+var uniforms = {
+	u_light: lightDirection,
+	u_color: [0, 0.5, 1],
 };
 
-renderer.init = function() {
-	renderer.canvas = document.getElementById('game-surface');
-    
-    try {
-        renderer.gl = renderer.canvas.getContext("webgl2");
-        renderer.resize();
-    } catch (e) {
-    	console.log(e);
-    }
+var vao = createVAOfromOBJ(objs.cube);
 
-    if (!renderer.gl) {
-        alert("Could not initialise WebGL, sorry :-(. Try a more modern browser.");
-        return false;
-    }
+function render(time) {
+	twgl.resizeCanvasToDisplaySize(gl.canvas);
+	gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
 
-    renderer.initVAOs();
+	gl.enable(gl.DEPTH_TEST);
+	gl.enable(gl.CULL_FACE);
+	gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
-    renderer.gl.clearColor(0.15, 0.15, 0.15, 1.0);
-    renderer.gl.enable(renderer.gl.DEPTH_TEST);
+	var fovy = 30 * Math.PI / 180;
+	var projection = m4.perspective(fovy, gl.canvas.clientWidth / gl.canvas.clientHeight, 0.5, 200);
 
-    return true;
-};
+	uniforms.u_model = m4.identity();
+	uniforms.u_view = m4.identity();
+	uniforms.u_projection = projection;
+	uniforms.u_normal = m4.identity();
 
-renderer.initShader = function() {
-	renderer.flatShader = new shader(renderer.gl,
-		`#version 300 es
-		in vec3 a_position;
-		in vec3 a_normal;
+	twgl.setUniforms(programInfo, uniforms);
 
-		uniform mat4 u_model;
-		uniform mat4 u_view;
-		uniform mat4 u_projection;
-		uniform mat4 u_normal;
-		uniform lowp vec4 u_color;
-		uniform vec3 u_light;
+	gl.useProgram(programInfo);
+	gl.bindVertexArray(vao);
+	gl.drawElements(renderer.gl.TRIANGLES, 36, renderer.gl.UNSIGNED_SHORT, 0);
+	gl.bindVertexArray(null);
 
-		out lowp vec4 vColor;
-
-		void main(void) {
-		    vec4 transformedNormal = u_normal * vec4(u_view, 1.0);
-		    float ambient = 0.8;
-		    float directional = max(0.5 + dot(transformedNormal.xyz, u_light), 0.0) / 1.5 * (1.0 - ambient);
-		    float brightness = directional + ambient;
-
-		    gl_Position = u_projection * u_view * u_model * vec4(a_position, 1.0);
-		    vColor = brightness * u_color;
-		}
-		`,
-		`#version 300 es
-		in lowp vec4 vColor;
-		
-		void main(void) {
-		    gl_FragColor = vColor;
-		}
-		`
-		);
+	//requestAnimationFrame(render);
 }
+requestAnimationFrame(render);
 
-renderer.initVAOs = function() {
-	renderer.vaos.cube = renderer.createVAOfromOBJ(cubeOBJ);
-};
-
-renderer.resize = function() {
-	renderer.canvas.width = window.innerWidth;
-    renderer.canvas.height = window.innerHeight;
-    renderer.gl.viewportWidth = renderer.canvas.width;
-    renderer.gl.viewportHeight = renderer.canvas.height;
-    renderer.calculatePerspectiveMatrix();
-};
-
-renderer.calculatePerspectiveMatrix = function() {
-	mat4.perspective(45, renderer.gl.viewportWidth / renderer.gl.viewportHeight, 0.1, 100.0, renderer.perspectiveMatrix);
-};
-
-//							  \\
-///							 \\\
-//// 		Shader 			\\\\
-///							 \\\
-//							  \\
-
-renderer.createVAOfromOBJ = function(objText) {
+function createVAOfromOBJ(objText) {
 	var positions = [];
 	var normals = [];
 	var indices = [];
@@ -122,41 +85,40 @@ renderer.createVAOfromOBJ = function(objText) {
 	   indices: {numComponents: 3, data: indices},
 	};
 	
-	var bufferInfo = twgl.createBufferInfoFromTypedArray(gl, arrays);
+	var bufferInfo = twgl.createBufferInfoFromArrays(gl, arrays);
 	var vao = twgl.createVAOFromBufferInfo(gl, setters, bufferInfo);
 	return vao;
 }
 
-//
-// Shader
-//
+function createProgram(gl, vsText, fsText) {
+	// create a program.
+	var program = gl.createProgram();
 
-function shader(gl, vsText, fsText) {
-    this.vsText = vsText;
-    this.fsText = fsText;
+	// attach the shaders.
+	gl.attachShader(program, compileShader('vs', vsText));
+	gl.attachShader(program, compileShader('fs', fsText));
 
-    this.vs = null;
-    this.fs = null;
+	// link the program.
+	gl.linkProgram(program);
 
-    this.program = this.compileShaders(gl);
+	// Check if it linked.
+	var success = gl.getProgramParameter(program, gl.LINK_STATUS);
+	if (!success) {
+		console.log("Program link fail.");
+		console.log(gl.getProgramInfoLog (program));
+	}
+ 
+	function compileShader(type, str) {
+		var shader = gl.createShader( {'vs': gl.VERTEX_SHADER, 'fs': gl.FRAGMENT_SHADER}[type] );
+		gl.shaderSource(shader, str);
+		gl.compileShader(shader);
+		if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+			console.log("Shader compile fail.");
+			console.log(gl.getShaderInfoLog(shader));
+			return null;
+		}
+		return shader;
+	}
 
-    this.uniformSetters = twgl.createUniformSetters(gl, this.program);
-    this.attributeSetters = twgl.createAttributeSetters(gl, this.program);
-}
-
-shader.prototype.compileShaders = function(gl) {
-    this.vs = compileShader('vs', this.vsText);
-    this.fs = compileShader('fs', this.fsText);
-
-    function compileShader(type, str) {
-        var shader = gl.createShader( {'vs': gl.VERTEX_SHADER, 'fs': gl.FRAGMENT_SHADER}[type] );
-        gl.shaderSource(shader, str);
-        gl.compileShader(shader);
-        if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
-            console.log("Shader compile fail.");
-            console.log(gl.getShaderInfoLog(shader));
-            return null;
-        }
-        return shader;
-    }
+	return program;
 };
