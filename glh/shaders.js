@@ -16,12 +16,12 @@ out lowp vec4 v_color;
 
 void main(void) {
 	vec4 transformedNormal = u_normal * vec4(a_normal, 1.0);
-	float ambient = 0.8;
+	float ambient = 0.6;
 	float directional = max(0.5 + dot(transformedNormal.xyz, u_light), 0.0) / 1.5 * (1.0 - ambient);
 	float brightness = directional + ambient;
 
 	gl_Position = u_eye * u_model * vec4(a_position, 1.0);
-	v_color = brightness * u_color;
+	v_color = vec4(brightness * u_color.rgb, u_color.w);
 }
 `;
 

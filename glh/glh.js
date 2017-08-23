@@ -3,8 +3,8 @@
 
 var glh = (function() {
 
-	function getContext(canvas) {
-		var context = canvas.getContext("webgl2");
+	function getContext(canvas, options) {
+		var context = canvas.getContext("webgl2", options);
 		return context;
 	}
 

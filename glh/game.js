@@ -40,12 +40,12 @@ var game = (function() {
 
     function initWorld() {
         // Floor
-        var floorWidth = 41; var floorHeight = 41;
+        var floorWidth = 21; var floorHeight = 21;
         for (var x = -floorWidth / 2; x <= floorWidth / 2; x++) {
             for (var z = -floorWidth / 2; z <= floorWidth / 2; z++) {
                 cube = {
                     position: [x, Math.floor(Math.random() * 4) / 4 * 0.25, z],
-                    color: Array(3).fill(Math.random() * 0.1 + 0.1)
+                    color: Array(3).fill(Math.random() * 0.1 + 0.3)
                 };
                 cube.color.push(1.0);
                 objects.cubes.push(cube);
@@ -116,12 +116,10 @@ var game = (function() {
         document.addEventListener('keydown', keyDown);
         document.addEventListener('keyup', keyUp);
         document.addEventListener('mousemove', mouseMove);
+        document.addEventListener('mousedown', mouseDown);
         document.addEventListener('pointerlockchange', pointerLockChange);
 
         function keyDown(event) {
-            if (pointerLock.havePointerLock && state == GameState.outOfFocus) {
-                pointerLock.activate(graphics.canvas);
-            }
             if (event.keyCode == 87) {
                 input.keyStates.w = true;
             }
@@ -164,6 +162,7 @@ var game = (function() {
         };
 
         function mouseMove(event) {
+            
             if (state == GameState.inFocus) {
                 camera.yaw -= event.movementX * input.mouseSensitivity;
                 camera.pitch -= event.movementY * input.mouseSensitivity;
@@ -175,6 +174,14 @@ var game = (function() {
                 }
             }
         };
+
+        function mouseDown(event) {
+            if (pointerLock.havePointerLock && state == GameState.outOfFocus) {
+                if (Math.abs(event.clientX - graphics.canvas.width / 2) + Math.abs(event.clientY - graphics.canvas.height / 2) < 100) {
+                    pointerLock.activate(graphics.canvas);
+                }
+            }
+        }
 
         function pointerLockChange() {
             if (pointerLock.isActive(graphics.canvas)) {

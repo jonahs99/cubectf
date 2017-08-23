@@ -1,9 +1,22 @@
 var graphics = (function() {
     var m4 = twgl.m4; // TODO: find another matrix lib that doesn't carry twgl with it
+    var v3 = twgl.v3;
 
     var gl = glh.getContext(document.getElementById("canvas"));
+
     var shader = {};
     var models = {};
+
+    // Global uniforms
+    var mProjection = m4.identity();
+    var vLight = v3.normalize(v3.create(3, 10, 5));
+
+    // Pre-allocate for matrix computations
+    var mCamera = m4.identity();
+    var mView = m4.identity();
+    var mEye = m4.identity();
+    var mModel = m4.identity();
+    var mNormal = m4.identity();
 
     function init() {
         gl.enable(gl.DEPTH_TEST);
@@ -23,57 +36,86 @@ var graphics = (function() {
         gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
         gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
-        var fovy = 45;
-        var mProjection = m4.perspective(fovy, gl.canvas.clientWidth / gl.canvas.clientHeight, 0.001, 200);
+        gl.useProgram(shader.program);
 
-        var mCamera = m4.identity();
+        setEyeMatrix(camera);
+        setDirectionalLight(vLight);
+
+        drawCubes(objects.cubes);
+        drawBullets(objects.bullets);
+    }
+
+    function setEyeMatrix(camera) {
+        m4.perspective(45, gl.canvas.clientWidth / gl.canvas.clientHeight, 0.001, 200, mProjection);
+        m4.identity(mCamera);
         m4.translate(mCamera, camera.position, mCamera);
         m4.rotateY(mCamera, camera.yaw, mCamera);
         m4.rotateX(mCamera, camera.pitch, mCamera);
-        var mView = m4.inverse(mCamera);
-        var mEye = m4.multiply(mProjection, mView);
-
-        var mModel = m4.identity();
-        var mNormal = m4.identity();
-
-        gl.useProgram(shader.program);
+        m4.inverse(mCamera, mView);
+        m4.multiply(mProjection, mView, mEye);
         gl.uniformMatrix4fv(shader.uniforms.u_eye, false, mEye);
-        gl.uniform3fv(shader.uniforms.u_light, new Float32Array([1.0, -1.0, 1.0]));
+    }
 
+    function setDirectionalLight(lightDirection) {
+        gl.uniform3fv(shader.uniforms.u_light, lightDirection);
+    }
+
+    function drawCubes(cubes) {
         gl.bindVertexArray(models.cube.vao);
-
-        objects.cubes.forEach(function(cube) {
-            m4.identity(mModel);
-            m4.translate(mModel, cube.position, mModel);
-            //m4.scale(mModel, [0.7, 1.0, 0.7], mModel);
-            m4.inverse(mModel, mNormal);
-            m4.transpose(mNormal, mNormal);
-
-            gl.uniformMatrix4fv(shader.uniforms.u_model, false, mModel);
-            gl.uniformMatrix4fv(shader.uniforms.u_normal, false, mNormal);
-            gl.uniform4fv(shader.uniforms.u_color, new Float32Array(cube.color));
-            gl.drawElements(gl.TRIANGLES, 36, gl.UNSIGNED_SHORT, 0);
+        cubes.forEach(function(cube) {
+            setModelTransformsT(cube.position);
+            setModelColor(cube.color);
+            drawModelElements(models.cube);
         });
-
-        gl.bindVertexArray(models.octahedron.vao);
-
-        objects.bullets.forEach(function(bullet) {
-            m4.identity(mModel);
-            m4.translate(mModel, bullet.position, mModel);
-            m4.rotateY(mModel, bullet.yaw, mModel);
-            m4.rotateZ(mModel, Date.now() / 400, mModel);
-            //m4.scale(mModel, [0.4, 0.4, 0.4], mModel);
-            m4.inverse(mModel, mNormal);
-            m4.transpose(mNormal, mNormal);
-
-            gl.uniformMatrix4fv(shader.uniforms.u_model, false, mModel);
-            gl.uniformMatrix4fv(shader.uniforms.u_normal, false, mNormal);
-            gl.uniform4fv(shader.uniforms.u_color, new Float32Array(bullet.color));
-            gl.drawElements(gl.TRIANGLES, 24, gl.UNSIGNED_SHORT, 0);
-        });
-
         gl.bindVertexArray(null);
     }
+
+    function drawBullets(bullets) {
+        gl.bindVertexArray(models.octahedron.vao);
+        bullets.forEach(function(bullet) {
+            setModelTransformsTSR(bullet.position, [0.5, 0.5, 0.5], 0, bullet.yaw, Date.now() / 500);
+            setModelColor(bullet.color);
+            drawModelElements(models.octahedron);
+        });
+        gl.bindVertexArray(null);
+    };
+
+    function drawModelElements(model) {
+        gl.drawElements(gl.TRIANGLES, model.nVertices, gl.UNSIGNED_SHORT, 0);
+    }
+
+    function setModelColor(color) {
+        gl.uniform4fv(shader.uniforms.u_color, new Float32Array(color));
+    }
+
+    function setModelTransformsT(position) {
+        m4.identity(mModel);
+        m4.translate(mModel, position, mModel);
+
+        m4.inverse(mModel, mNormal);
+        m4.transpose(mNormal, mNormal);
+
+        gl.uniformMatrix4fv(shader.uniforms.u_model, false, mModel);
+        gl.uniformMatrix4fv(shader.uniforms.u_normal, false, mNormal);
+    }
+
+    function setModelTransformsTSR(position, scale, pitch, yaw, roll) {
+        pitch = pitch || 0;
+        yaw = yaw || 0;
+        roll = roll || 0;
+
+        m4.identity(mModel);
+        m4.translate(mModel, position, mModel);
+        m4.rotateY(mModel, yaw, mModel);
+        m4.rotateZ(mModel, roll, mModel);
+        m4.scale(mModel, scale, mModel);
+
+        m4.inverse(mModel, mNormal);
+        m4.transpose(mNormal, mNormal);
+
+        gl.uniformMatrix4fv(shader.uniforms.u_model, false, mModel);
+        gl.uniformMatrix4fv(shader.uniforms.u_normal, false, mNormal);
+    };
 
     function loadModels() {
         models.cube = loadModel(gl, res.objs.cube);
@@ -105,7 +147,7 @@ var graphics = (function() {
 
         return {
             vao: vao,
-            nVertices: obj.positions.length
+            nVertices: obj.indices.length
         };
     }
     
