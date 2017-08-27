@@ -61,19 +61,19 @@ var graphics = (function() {
         gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
         gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
-        if (models.floor) {
+        /*if (models.floor) {
             gl.useProgram(staticShader.program);
             setEyeMatrix(camera, staticShader);
             setDirectionalLight(vLight, staticShader);
             gl.bindVertexArray(models.floor.vao);
             drawModelElements(models.floor);
-        }
+        }*/
 
         gl.useProgram(modelShader.program);
         setEyeMatrix(camera, modelShader);
         setDirectionalLight(vLight, modelShader);
 
-        //drawCubes(objects.cubes);
+        drawCubes(objects.cubes);
         drawPlayers(objects.players, playerId);
         drawBullets(objects.bullets);
 

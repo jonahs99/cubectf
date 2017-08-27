@@ -38,7 +38,7 @@ var game = (function() {
 
     function initWorld() {
         // Floor
-        var floorWidth = 21; var floorHeight = 21;
+        var floorWidth = 25; var floorHeight = 25;
         for (var x = -floorWidth / 2; x <= floorWidth / 2; x++) {
             for (var z = -floorWidth / 2; z <= floorWidth / 2; z++) {
                 var cube = {
