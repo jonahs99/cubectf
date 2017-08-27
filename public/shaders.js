@@ -1,6 +1,29 @@
 var res = res || {};
+res.staticShader = res.staticShader || {};
 res.shader = res.shader || {};
 
+res.staticShader.vs = 
+`#version 300 es
+in vec3 a_position;
+in vec3 a_normal;
+in vec3 a_color;
+
+uniform mat4 u_eye;
+uniform lowp vec3 u_light;
+
+out lowp vec4 v_color;
+
+void main(void) {
+	vec4 transformedNormal = vec4(a_normal, 1.0);
+	float ambient = 0.6;
+	float directional = max(1.0 + dot(transformedNormal.xyz, u_light), 0.0) / 2.0 * (1.0 - ambient);
+	float brightness = directional + ambient;
+
+	gl_Position = u_eye * vec4(a_position, 1.0);
+	v_color = vec4(brightness * a_color, 1.0);
+}
+`;
+//vec4(brightness * a_color, 1.0);
 res.shader.vs = 
 `#version 300 es
 in vec3 a_position;

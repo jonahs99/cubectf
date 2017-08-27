@@ -51,7 +51,7 @@ var comm = function(io, world) {
 	// Broadcast
 
 	function startBroadcasting() {
-		setInterval(broadcastSnapshot, 200);
+		setInterval(broadcastSnapshot, 100);
 	}
 
 	function broadcastSnapshot() {

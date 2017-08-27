@@ -79,29 +79,6 @@ var game = (function() {
     function gameLoop() {
         var playerSpeed = 0.1;
 
-        /*if (input.keyStates.w) {
-            camera.position[0] -= Math.sin(camera.yaw) * playerSpeed;
-            camera.position[2] -= Math.cos(camera.yaw) * playerSpeed;
-        }
-        if (input.keyStates.a) {
-            camera.position[0] -= Math.cos(camera.yaw) * playerSpeed;
-            camera.position[2] += Math.sin(camera.yaw) * playerSpeed;
-        }
-        if (input.keyStates.s) {
-            camera.position[0] += Math.sin(camera.yaw) * playerSpeed;
-            camera.position[2] += Math.cos(camera.yaw) * playerSpeed;
-        }
-        if (input.keyStates.d) {
-            camera.position[0] += Math.cos(camera.yaw) * playerSpeed;
-            camera.position[2] -= Math.sin(camera.yaw) * playerSpeed;
-        }
-        if (input.keyStates.q) {
-            camera.position[1] -= playerSpeed;
-        }
-        if (input.keyStates.e) {
-            camera.position[1] += playerSpeed;
-        }*/
-
         graphics.draw(objects, input.looking, playerId);
 
         frame++;

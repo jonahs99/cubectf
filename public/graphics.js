@@ -4,7 +4,8 @@ var graphics = (function() {
 
     var gl = glh.getContext(document.getElementById("canvas"));
 
-    var shader = {};
+    var staticShader = {};
+    var modelShader = {};
     var models = {};
 
     // Global uniforms
@@ -21,14 +22,18 @@ var graphics = (function() {
     function init() {
         gl.enable(gl.DEPTH_TEST);
         gl.clearColor(0, 1.0, 0.5, 1.0);
-        initShader();
+        initShaders();
         loadModels();
     }
 
-    function initShader() {
-        shader.program = glh.createProgram(gl, res.shader.vs, res.shader.fs);
-        shader.uniforms = glh.getUniformLocations(gl, shader.program);
-        shader.attributes = glh.getAttributeLocations(gl, shader.program);
+    function initShaders() {
+        staticShader.program = glh.createProgram(gl, res.staticShader.vs, res.shader.fs);
+        staticShader.uniforms = glh.getUniformLocations(gl, staticShader.program);
+        staticShader.attributes = glh.getAttributeLocations(gl, staticShader.program);
+        
+        modelShader.program = glh.createProgram(gl, res.shader.vs, res.shader.fs);
+        modelShader.uniforms = glh.getUniformLocations(gl, modelShader.program);
+        modelShader.attributes = glh.getAttributeLocations(gl, modelShader.program);
     }
 
     function draw(objects, looking, playerId) {
@@ -47,14 +52,30 @@ var graphics = (function() {
             };
         }
 
+        if (objects.cubes.length && !models.floor) {
+            models.floor = generateStaticModel(objects.cubes);
+            console.log(models.floor);
+        }
+
         glh.resize(gl.canvas);
         gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
         gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
-        gl.useProgram(shader.program);
+        if (models.floor) {
+            gl.useProgram(staticShader.program);
+            setEyeMatrix(camera, staticShader);
+            setDirectionalLight(vLight, staticShader);
+            gl.bindVertexArray(models.floor.vao);
+            drawModelElements(models.floor);
+        }
 
-        setEyeMatrix(camera);
-        setDirectionalLight(vLight);
+        gl.useProgram(modelShader.program);
+        setEyeMatrix(camera, modelShader);
+        setDirectionalLight(vLight, modelShader);
+
+        //drawCubes(objects.cubes);
+        drawPlayers(objects.players, playerId);
+        drawBullets(objects.bullets);
 
         function drawCubes(cubes) {
             gl.bindVertexArray(models.cube.vao);
@@ -100,13 +121,9 @@ var graphics = (function() {
             });
             gl.bindVertexArray(null);
         };
-
-        drawCubes(objects.cubes);
-        drawPlayers(objects.players, playerId);
-        drawBullets(objects.bullets);
     }
 
-    function setEyeMatrix(camera) {
+    function setEyeMatrix(camera, shader) {
         m4.perspective(45, gl.canvas.clientWidth / gl.canvas.clientHeight, 0.001, 200, mProjection);
         m4.identity(mCamera);
         m4.translate(mCamera, camera.position, mCamera);
@@ -117,17 +134,16 @@ var graphics = (function() {
         gl.uniformMatrix4fv(shader.uniforms.u_eye, false, mEye);
     }
 
-    function setDirectionalLight(lightDirection) {
+    function setDirectionalLight(lightDirection, shader) {
         gl.uniform3fv(shader.uniforms.u_light, lightDirection);
     }
-
 
     function drawModelElements(model) {
         gl.drawElements(gl.TRIANGLES, model.nVertices, gl.UNSIGNED_SHORT, 0);
     }
 
     function setModelColor(color) {
-        gl.uniform4fv(shader.uniforms.u_color, new Float32Array(color));
+        gl.uniform4fv(modelShader.uniforms.u_color, new Float32Array(color));
     }
 
     function setModelTransformsT(position) {
@@ -146,13 +162,73 @@ var graphics = (function() {
         m4.inverse(mModel, mNormal);
         m4.transpose(mNormal, mNormal);
 
-        gl.uniformMatrix4fv(shader.uniforms.u_model, false, mModel);
-        gl.uniformMatrix4fv(shader.uniforms.u_normal, false, mNormal);
+        gl.uniformMatrix4fv(modelShader.uniforms.u_model, false, mModel);
+        gl.uniformMatrix4fv(modelShader.uniforms.u_normal, false, mNormal);
     }
 
     function loadModels() {
         models.cube = loadModel(gl, res.objs.cube);
         models.octahedron = loadModel(gl, res.objs.octahedron);
+    }
+
+    function generateStaticModel(cubes) {
+        var cubeObj = parseOBJ(res.objs.cube);
+
+        var positions = [];
+        var normals = [];
+        var colors = [];
+        var indices = [];
+
+        var nVertices = cubeObj.positions.length / 3;
+
+        cubes.forEach(function(cube, i) {
+            positions = positions.concat(cubeObj.positions.map(function(pos, iPos) {
+                if (iPos % 3 == 0) {
+                    return pos + cube.position[0];
+                } else if (iPos % 3 == 1) {
+                    return pos + cube.position[1];
+                } else {
+                    return pos + cube.position[2];
+                }
+            }));
+            normals = normals.concat(cubeObj.normals);
+            for (var j = 0; j < cubeObj.positions.length / 3; j++)
+                colors.push(cube.color[0], cube.color[1], cube.color[2]);
+            indices = indices.concat(cubeObj.indices.map(function(index) {
+                return index + (i * nVertices);
+            }));
+        });
+
+        console.log(positions);
+        console.log(normals);
+        console.log(colors);
+        console.log(indices);
+
+        var vao = gl.createVertexArray();
+        gl.bindVertexArray(vao);
+        var buffers = {
+            position: glh.createBuffer(gl, gl.ARRAY_BUFFER, new Float32Array(positions)),
+            normal: glh.createBuffer(gl, gl.ARRAY_BUFFER, new Float32Array(normals)),
+            colors: glh.createBuffer(gl, gl.ARRAY_BUFFER, new Float32Array(colors)),
+            indices: glh.createBuffer(gl, gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(indices)),
+        };
+
+        gl.bindBuffer(gl.ARRAY_BUFFER, buffers.position);
+        gl.vertexAttribPointer(staticShader.attributes.a_position, 3, gl.FLOAT, false, 0, 0);
+        gl.bindBuffer(gl.ARRAY_BUFFER, buffers.normal);
+        gl.vertexAttribPointer(staticShader.attributes.a_normal, 3, gl.FLOAT, false, 0, 0);
+        gl.bindBuffer(gl.ARRAY_BUFFER, buffers.colors);
+        gl.vertexAttribPointer(staticShader.attributes.a_color, 3, gl.FLOAT, false, 0, 0);
+
+        glh.enableVertexAttributeArrays(gl, staticShader.attributes);
+
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, buffers.indices);
+        gl.bindVertexArray(null);
+
+        return {
+            vao: vao,
+            nVertices: indices.length
+        };
     }
 
     function loadModel(gl, objText) {
@@ -168,11 +244,11 @@ var graphics = (function() {
         };
 
         gl.bindBuffer(gl.ARRAY_BUFFER, buffers.position);
-        gl.vertexAttribPointer(shader.attributes.a_position, 3, gl.FLOAT, false, 0, 0);
+        gl.vertexAttribPointer(modelShader.attributes.a_position, 3, gl.FLOAT, false, 0, 0);
         gl.bindBuffer(gl.ARRAY_BUFFER, buffers.normal);
-        gl.vertexAttribPointer(shader.attributes.a_normal, 3, gl.FLOAT, false, 0, 0);
+        gl.vertexAttribPointer(modelShader.attributes.a_normal, 3, gl.FLOAT, false, 0, 0);
 
-        glh.enableVertexAttributeArrays(gl, shader.attributes);
+        glh.enableVertexAttributeArrays(gl, modelShader.attributes);
 
         gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, buffers.indices);
 

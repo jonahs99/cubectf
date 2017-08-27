@@ -3,8 +3,10 @@ var utils = require('./utils');
 
 var world = (function() {
 
-	var size = [20, 20];
+	var frame = 0;
+	var fpsTimer = Date.now();
 
+	var size = [20, 20];
 	var players = [];
 
 	function init() {
@@ -67,7 +69,7 @@ var world = (function() {
 		players.forEach(function(player) {
 			var keyStates = player.input.keyStates;
 			var yaw = player.input.looking.yaw;
-			var playerSpeed = 0.5;
+			var playerSpeed = 0.3;
 			if (keyStates.w) {
 	            player.position[0] -= Math.sin(yaw) * playerSpeed;
 	            player.position[2] -= Math.cos(yaw) * playerSpeed;
@@ -91,6 +93,14 @@ var world = (function() {
 	            player.position[1] += playerSpeed;
 	        }
 		});
+
+		frame++;
+		if (frame % 100 == 0) {
+			var now = Date.now();
+			var ellapsed = now - fpsTimer;
+			fpsTimer = now;
+			console.log("fps: " + Math.floor(ellapsed / 100));
+		}
 	};
 
 	return {
