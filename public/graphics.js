@@ -36,46 +36,54 @@ var graphics = (function() {
         modelShader.attributes = glh.getAttributeLocations(gl, modelShader.program);
     }
 
-    function draw(objects, looking, playerId) {
-        var player = objects.players[playerId];
-        if (player) {
+    function draw(world, delta, looking, playerId) {
+
+        if (!world.lastObjects || !world.currentObjects) {
+            return;
+        }
+
+        var objects = {
+            players: [],
+            bullets: [],
+        };
+
+        objects.players = world.currentObjects.players.map(function(currentPlayer) {
+            var lastPlayer = world.lastObjects.players[currentPlayer.id];
+            var player = {
+                position: lerpArray(lastPlayer.position, currentPlayer.position, delta),
+                pitch: lerp(lastPlayer.pitch, currentPlayer.pitch, delta),
+                yaw: lerp(lastPlayer.yaw, currentPlayer.yaw, delta),
+                color: currentPlayer.color,
+            };
+            return player;
+        });
+
+        var user = objects.players[playerId];
+        if (user) {
             var camera = {
-                position: player.position,
+                position: user.position,
                 pitch: looking.pitch,
                 yaw: looking.yaw
             };
         } else {
             var camera = {
-                position: [0, 2.3, 0],
+                position: [0,0,0],
                 pitch: looking.pitch,
                 yaw: looking.yaw
             };
-        }
-
-        if (objects.cubes.length && !models.floor) {
-            models.floor = generateStaticModel(objects.cubes);
-            console.log(models.floor);
         }
 
         glh.resize(gl.canvas);
         gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
         gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
-        /*if (models.floor) {
-            gl.useProgram(staticShader.program);
-            setEyeMatrix(camera, staticShader);
-            setDirectionalLight(vLight, staticShader);
-            gl.bindVertexArray(models.floor.vao);
-            drawModelElements(models.floor);
-        }*/
-
         gl.useProgram(modelShader.program);
         setEyeMatrix(camera, modelShader);
         setDirectionalLight(vLight, modelShader);
 
-        drawCubes(objects.cubes);
+        drawCubes(world.staticObjects.cubes);
         drawPlayers(objects.players, playerId);
-        drawBullets(objects.bullets);
+        //drawBullets(objects.bullets);
 
         function drawCubes(cubes) {
             gl.bindVertexArray(models.cube.vao);

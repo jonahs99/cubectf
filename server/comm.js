@@ -30,7 +30,7 @@ var comm = function(io, world) {
 
 	function onDisconnect(id) {
 		var conn = conns[id];
-		world.deletePlayer(conn.playerId);
+		world.removePlayer(conn.playerId);
 		removeConn(id);
 	}
 
@@ -51,7 +51,7 @@ var comm = function(io, world) {
 	// Broadcast
 
 	function startBroadcasting() {
-		setInterval(broadcastSnapshot, 100);
+		setInterval(broadcastSnapshot, 50);
 	}
 
 	function broadcastSnapshot() {

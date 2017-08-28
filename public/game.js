@@ -9,13 +9,18 @@ var game = (function() {
     var inFocus = false;
 
     var frame = 0;
+    var lastUpdateMs = 0;
     var fpsDisp = false;
     var fpsTimer = Date.now();
 
-    var objects = {
-        cubes: [],
-        players: [],
-        bullets: []
+    var serverUpdateMs = 50;
+
+    var world = {
+        staticObjects: {
+            cubes: []
+        },
+        currentObjects: null,
+        lastObjects: null,
     };
 
     var input = {
@@ -46,40 +51,15 @@ var game = (function() {
                     color: Array(3).fill(Math.random() * 0.1 + 0.3)
                 };
                 cube.color.push(1.0);
-                objects.cubes.push(cube);
+                world.staticObjects.cubes.push(cube);
             }
-        }
-        //Players
-        var nPlayers = 0;
-        for (var i = 0; i < nPlayers; i++) {
-            var x = randInt(-floorWidth / 2, floorWidth / 2);
-            var z = randInt(-floorWidth / 2, floorWidth / 2);
-            var player = {
-                position: [x, 1.5, z],
-                color: [0, 0.5, 1.0, 1.0],
-                pitch: rand(-Math.PI / 4, Math.PI / 4),
-                yaw: rand(0, 2 * Math.PI)
-            };
-            objects.players.push(player);
-        }
-        //Bullets
-        var nBullets = 5;
-        for (var i = 0; i < nBullets; i++) {
-            var x = randInt(-floorWidth / 2, floorWidth / 2);
-            var z = randInt(-floorWidth / 2, floorWidth / 2);
-            var bullet = {
-                position: [x, 2, z],
-                color: [1.0, 0, 0.5, 1.0],
-                yaw: Math.atan2(z, x)
-            };
-            objects.bullets.push(bullet);
         }
     }
 
     function gameLoop() {
         var playerSpeed = 0.1;
 
-        graphics.draw(objects, input.looking, playerId);
+        graphics.draw(world, getFrameDelta(), input.looking, playerId);
 
         frame++;
         if (frame % 30 == 0) {
@@ -99,10 +79,16 @@ var game = (function() {
         fpsDisp = !fpsDisp;
     }
 
+    function getFrameDelta() {
+        return clamp((Date.now() - lastUpdateMs) / serverUpdateMs, 0, 1);
+    }
+
     // Server-stuff
 
-    function setPlayers(players) {
-        objects.players = players;
+    function setObjects(objects) {
+        world.lastObjects = world.currentObjects;
+        world.currentObjects = objects;
+        lastUpdateMs = Date.now();
     }
 
     function playerJoin(id) {
@@ -193,7 +179,7 @@ var game = (function() {
         addEventListeners: addEventListeners,
         initWorld: initWorld,
 
-        setPlayers: setPlayers,
+        setObjects: setObjects,
         playerJoin: playerJoin,
         getInput: getInput,
 

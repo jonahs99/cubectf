@@ -10,6 +10,8 @@ app.get('/', function(req, res) {
 app.use(express.static('public'));
 
 var world = require('./server/world');
+world.init();
+
 var comm = require('./server/comm')(io, world);
 comm.startBroadcasting();
 

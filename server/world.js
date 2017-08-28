@@ -1,46 +1,62 @@
 // server world state
 var utils = require('./utils');
 
+function Player(id) {
+	this.id = id;
+	this.reserved = false;
+	this.alive = false;
+
+	this.position = [0, 0, 0];
+	this.color = [0, 0, 0, 0];
+	this.input = {
+		keyStates: {
+			w: false,
+			a: false,
+			s: false,
+			d: false,
+			q: false,
+			e: false,
+		},
+		looking: {
+			pitch: 0.0,
+			yaw: 0.0
+		}
+	};
+}
+
 var world = (function() {
 
 	var frame = 0;
 	var fpsTimer = Date.now();
 
 	var size = [20, 20];
+	var nPlayers = 24;
 	var players = [];
 
 	function init() {
-
+		for (var i = 0; i < nPlayers; i++) {
+			players.push(new Player(i));
+		}
 	}
 
 	function createPlayer() {
-		var x = utils.rand(-size[0] / 2, size[0] / 2);
-		var z = utils.rand(-size[1] / 2, size[1] / 2);
-		var player = {
-			id: players.length,
-		    position: [x, 2.3, z],
-            color: [0, 0.5, 1.0, 1.0],
-            input: {
-            	keyStates: {
-					w: false,
-					a: false,
-					s: false,
-					d: false,
-					q: false,
-					e: false,
-				},
-		        looking: {
-		            pitch: 0.0,
-		            yaw: 0.0
-		        }
-		    },
-		};
-		players.push(player);
-		return player.id;
+		for (var i = 0; i < nPlayers; i++) {
+			var player = players[i];
+			if (!player.reserved) {
+				player.reserved = true;
+				player.alive = true;
+				var x = utils.rand(-size[0] / 2, size[0] / 2);
+				var z = utils.rand(-size[1] / 2, size[1] / 2);
+				player.position = [x, 2.3, z];
+				player.color = [0, 0.5, 1.0, 1.0];
+				return i;
+			}
+		}
+		return -1;
 	}
 
-	function deletePlayer(id) {
-		players.splice(id, 1);
+	function removePlayer(id) {
+		players[id].reserved = false;
 	}
 
 	function applyInput(playerId, input) {
@@ -50,6 +66,9 @@ var world = (function() {
 	function getSnapshot() {
 		var playerSnapshots = players.map(function(player) {
 			return {
+				id: player.id,
+				reserved: player.reserved,
+				alive: player.alive,
 				position: player.position,
 				color: player.color,
 				pitch: player.input.looking.pitch,
@@ -99,7 +118,7 @@ var world = (function() {
 			var now = Date.now();
 			var ellapsed = now - fpsTimer;
 			fpsTimer = now;
-			console.log("fps: " + Math.floor(ellapsed / 100));
+			//console.log("fps: " + Math.floor(ellapsed / 100));
 		}
 	};
 
@@ -107,7 +126,7 @@ var world = (function() {
 		init: init,
 
 		createPlayer: createPlayer,
-		deletePlayer: deletePlayer,
+		removePlayer: removePlayer,
 		applyInput: applyInput,
 
 		getSnapshot: getSnapshot,

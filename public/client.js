@@ -12,13 +12,13 @@ var client = (function() {
 	}
 
 	function onSnapshot(data) {
-		game.setPlayers(data.players);
+		game.setObjects(data);
 	}
 
 	// Outgoing
 
 	function startBroadcasting() {
-		setInterval(broadcastInput, 100);
+		setInterval(broadcastInput, 50);
 	}
 
 	function broadcastInput() {
