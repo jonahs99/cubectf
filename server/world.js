@@ -24,16 +24,30 @@ function Player(id) {
 	};
 }
 
+function Cube(pos, color) {
+	this.pos = pos;
+	this.color = color;
+}
+
 var world = (function() {
 
 	var frame = 0;
 	var fpsTimer = Date.now();
+	var tickMs = Math.floor(1000 / 40);
+	var framesPerUpdate = 4;
 
 	var size = [20, 20];
+	var cubes = [];
+
 	var nPlayers = 24;
 	var players = [];
 
 	function init() {
+		for (var x = -(size[0] - 1) / 2; x <= (size[0] - 1) / 2; x++) {
+			for (var z = -(size[1] - 1) / 2; z <= (size[0] - 1) / 2; z++) {
+				cubes.push(new Cube([x, utils.randInt(-2, 3) * 0.1, z], [0, 0, 0, 0].map(function(a, i) { return i != 3 ? utils.rand(0.5, 1) : 1.0; }) ) );
+			}
+		}
 		for (var i = 0; i < nPlayers; i++) {
 			players.push(new Player(i));
 		}
@@ -63,6 +77,17 @@ var world = (function() {
 		players[playerId].input = input;
 	}
 
+	function getStatic() {
+		return {
+			server: {
+				updateMs: tickMs * framesPerUpdate,
+			},
+			world: {
+				cubes: cubes,
+			}
+		};
+	}
+
 	function getSnapshot() {
 		var playerSnapshots = players.map(function(player) {
 			return {
@@ -80,11 +105,11 @@ var world = (function() {
 		};
 	}
 
-	function startLoop() {
-		setInterval(gameLoop, 50);
+	function startLoop(comm) {
+		setInterval(gameLoop.bind(null, comm), tickMs);
 	}
 
-	function gameLoop() {
+	function gameLoop(comm) {
 		players.forEach(function(player) {
 			var keyStates = player.input.keyStates;
 			var yaw = player.input.looking.yaw;
@@ -120,6 +145,9 @@ var world = (function() {
 			fpsTimer = now;
 			//console.log("fps: " + Math.floor(ellapsed / 100));
 		}
+		if (frame % framesPerUpdate == 0) {
+			comm.broadcastSnapshot();
+		}
 	};
 
 	return {
@@ -129,7 +157,9 @@ var world = (function() {
 		removePlayer: removePlayer,
 		applyInput: applyInput,
 
+		getStatic: getStatic,
 		getSnapshot: getSnapshot,
+
 		startLoop: startLoop,
 	};
 

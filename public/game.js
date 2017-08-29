@@ -13,12 +13,10 @@ var game = (function() {
     var fpsDisp = false;
     var fpsTimer = Date.now();
 
-    var serverUpdateMs = 50;
+    var serverUpdateMs = 0;
 
     var world = {
-        staticObjects: {
-            cubes: []
-        },
+        staticObjects: null,
         currentObjects: null,
         lastObjects: null,
     };
@@ -42,18 +40,7 @@ var game = (function() {
     var playerId = -1;
 
     function initWorld() {
-        // Floor
-        var floorWidth = 25; var floorHeight = 25;
-        for (var x = -floorWidth / 2; x <= floorWidth / 2; x++) {
-            for (var z = -floorWidth / 2; z <= floorWidth / 2; z++) {
-                var cube = {
-                    position: [x, randInt(0, 4) / 16, z],
-                    color: Array(3).fill(Math.random() * 0.1 + 0.3)
-                };
-                cube.color.push(1.0);
-                world.staticObjects.cubes.push(cube);
-            }
-        }
+
     }
 
     function gameLoop() {
@@ -75,6 +62,11 @@ var game = (function() {
         requestAnimationFrame(gameLoop);
     }
 
+    function start(updateMs) {
+        serverUpdateMs = updateMs;
+        requestAnimationFrame(gameLoop);
+    }
+
     function toggleFPS() {
         fpsDisp = !fpsDisp;
     }
@@ -84,6 +76,10 @@ var game = (function() {
     }
 
     // Server-stuff
+
+    function setStatic(objects) {
+        world.staticObjects = objects;
+    }
 
     function setObjects(objects) {
         world.lastObjects = world.currentObjects;
@@ -178,7 +174,9 @@ var game = (function() {
     return {
         addEventListeners: addEventListeners,
         initWorld: initWorld,
+        start: start,
 
+        setStatic: setStatic,
         setObjects: setObjects,
         playerJoin: playerJoin,
         getInput: getInput,

@@ -89,7 +89,7 @@ var graphics = (function() {
             gl.bindVertexArray(models.cube.vao);
             cubes.forEach(function(cube) {
                 m4.identity(mModel);
-                setModelTransformsT(cube.position);
+                setModelTransformsT(cube.pos);
                 setModelColor(cube.color);
                 setTransformUniforms();
                 drawModelElements(models.cube);

@@ -23,6 +23,8 @@ var comm = function(io, world) {
 		setSocketEvents(socket);
 
 		var playerId = world.createPlayer();
+
+		sendStatic(socket);
 		sendPlayerJoin(socket, playerId);
 
 		addConn(socket, playerId);
@@ -48,18 +50,18 @@ var comm = function(io, world) {
 		socket.emit('player', {id: playerId});
 	}
 
-	// Broadcast
-
-	function startBroadcasting() {
-		setInterval(broadcastSnapshot, 50);
+	function sendStatic(socket) {
+		socket.emit('static', world.getStatic());
 	}
+
+	// Broadcast
 
 	function broadcastSnapshot() {
 		io.emit('snapshot', world.getSnapshot());
 	}
 
 	return {
-		startBroadcasting: startBroadcasting,
+		broadcastSnapshot: broadcastSnapshot,
 	};
 
 };

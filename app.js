@@ -13,9 +13,8 @@ var world = require('./server/world');
 world.init();
 
 var comm = require('./server/comm')(io, world);
-comm.startBroadcasting();
 
-world.startLoop();
+world.startLoop(comm);
 
 http.listen(3000, function() {
 	console.log('listening on *:3000');
